@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 
+  ~ Copyright (C) 2012 The Android Open Source Project
+  ~
+  ~ Licensed under the Apache License, Version 2.0 (the "License");
+  ~ you may not use this file except in compliance with the License.
+  ~ You may obtain a copy of the License at
+  ~
+  ~      http://www.apache.org/licenses/LICENSE-2.0
+  ~
+  ~ Unless required by applicable law or agreed to in writing, software
+  ~ distributed under the License is distributed on an "AS IS" BASIS,
+  ~ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  ~ See the License for the specific language governing permissions and
+  ~ limitations under the License
+-->
+
+<resources xmlns:xliff="urn:oasis:names:tc:xliff:document:1.2">
+	<string name="other_settings_label">Другие настройки</string>
+    <string name="fullscreen_caller_photo_title">Полноэкранное фото</string>
+    <string name="fullscreen_caller_photo_summary">Отображать полноэкранное фото во входящих и исходящих звонках</string>
+    <string name="fullscreen_caller_photo_message">Для применения необходимо перезапустить приложение</string>
+
+    <string name="incall_enable_dnd_title">Включать режим \"Не беспокоить\" во время вызовов</string>
+    <string name="incall_dnd_dialog_message">Чтобы включить режим \"Не беспокоить\", приложению Телефон необходимо разрешение на управление статусом режима \"Не беспокоить\".\nПожалуйста, предоставьте его.</string>
+    <string name="allow">Разрешить</string>
+    <string name="deny">Отказать</string>
+
+    <!-- Smart Options -->
+    <string name="smart_mute_title">Отключение звука</string>
+    <string name="smart_mute_summary">Отключать звук входящего вызова переворотом устройства</string>
+</resources>

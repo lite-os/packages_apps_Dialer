@@ -18,9 +18,11 @@ package com.android.incallui;
 
 import android.content.Context;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.graphics.Point;
 import android.os.Bundle;
 import android.os.Handler;
+import android.preference.PreferenceManager;
 import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
 import android.support.annotation.VisibleForTesting;
@@ -77,7 +79,8 @@ import java.util.concurrent.atomic.AtomicBoolean;
  * presenters that want to listen in on the in-call state changes. TODO: This class has become more
  * of a state machine at this point. Consider renaming.
  */
-public class InCallPresenter implements CallList.Listener {
+public class InCallPresenter implements CallList.Listener,
+        AccelerometerListener.ChangeListener {
 
   private static final String EXTRA_FIRST_TIME_SHOWN =
       "com.android.incallui.intent.extra.FIRST_TIME_SHOWN";
@@ -110,6 +113,7 @@ public class InCallPresenter implements CallList.Listener {
 
   private StatusBarNotifier mStatusBarNotifier;
   private ExternalCallNotifier mExternalCallNotifier;
+  private InCallDndHandler mDndHandler;
   private ContactInfoCache mContactInfoCache;
   private Context mContext;
   private final OnCheckBlockedListener mOnCheckBlockedListener =
@@ -179,6 +183,7 @@ public class InCallPresenter implements CallList.Listener {
       };
   private InCallState mInCallState = InCallState.NO_CALLS;
   private ProximitySensor mProximitySensor;
+  private AccelerometerListener mAccelerometerListener;
   private final PseudoScreenState mPseudoScreenState = new PseudoScreenState();
   private boolean mServiceConnected;
   private InCallCameraManager mInCallCameraManager;
@@ -343,8 +348,12 @@ public class InCallPresenter implements CallList.Listener {
         .getEnrichedCallManager()
         .registerStateChangedListener(mStatusBarNotifier);
 
+    mDndHandler = new InCallDndHandler(context);
+    addListener(mDndHandler);
+
     mProximitySensor = proximitySensor;
     addListener(mProximitySensor);
+    mAccelerometerListener = new AccelerometerListener(context, this);
 
     mThemeColorManager =
         new ThemeColorManager(new InCallUIMaterialColorMapUtils(mContext.getResources()));
@@ -725,6 +734,10 @@ public class InCallPresenter implements CallList.Listener {
     LogUtil.d(
         "InCallPresenter.onCallListChange", "onCallListChange newState changed to " + newState);
 
+    if (!newState.isIncoming() && mAccelerometerListener != null) {
+        mAccelerometerListener.enable(false);
+    }
+
     // Set the new state before announcing it to the world
     LogUtil.i(
         "InCallPresenter.onCallListChange",
@@ -755,6 +768,10 @@ public class InCallPresenter implements CallList.Listener {
     LogUtil.i(
         "InCallPresenter.onIncomingCall", "Phone switching state: " + oldState + " -> " + newState);
     mInCallState = newState;
+
+    if (newState.isIncoming() && mAccelerometerListener != null) {
+        mAccelerometerListener.enable(true);
+    }
 
     for (IncomingCallListener listener : mIncomingCallListeners) {
       listener.onIncomingCall(oldState, mInCallState, call);
@@ -828,6 +845,22 @@ public class InCallPresenter implements CallList.Listener {
   private boolean isSecretCode(@Nullable String number) {
     return number != null
         && (number.length() <= 8 || number.startsWith("*#*#") || number.endsWith("#*#*"));
+  }
+
+  public void onOrientationChanged(int orientation) {
+      // ignored
+  }
+
+  @Override
+  public void onDeviceFlipped(boolean faceDown) {
+      if (!faceDown) {
+          return;
+      }
+
+      SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(mContext);
+      if (prefs.getBoolean("button_smart_mute", false)) {
+          TelecomUtil.silenceRinger(mContext);
+      }
   }
 
   /** Given the call list, return the state in which the in-call screen should be. */
@@ -1125,6 +1158,9 @@ public class InCallPresenter implements CallList.Listener {
     // (1) Attempt to answer a call
     if (incomingCall != null) {
       incomingCall.answer(VideoProfile.STATE_AUDIO_ONLY);
+      if (mAccelerometerListener != null) {
+          mAccelerometerListener.enable(false);
+      }
       return true;
     }
 
@@ -1440,6 +1476,11 @@ public class InCallPresenter implements CallList.Listener {
       }
       mProximitySensor = null;
 
+      if (mAccelerometerListener != null) {
+          mAccelerometerListener.enable(false);
+          mAccelerometerListener = null;
+      }
+
       if (mStatusBarNotifier != null) {
         removeListener(mStatusBarNotifier);
         EnrichedCallComponent.get(mContext)
@@ -1451,6 +1492,11 @@ public class InCallPresenter implements CallList.Listener {
         mExternalCallList.removeExternalCallListener(mExternalCallNotifier);
       }
       mStatusBarNotifier = null;
+
+      if (mDndHandler != null) {
+        removeListener(mDndHandler);
+      }
+      mDndHandler = null;
 
       if (mCallList != null) {
         mCallList.removeListener(this);
